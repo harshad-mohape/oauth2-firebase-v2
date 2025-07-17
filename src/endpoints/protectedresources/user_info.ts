@@ -1,5 +1,5 @@
 import * as admin from "firebase-admin";
-import * as functions from "firebase-functions";
+import { onRequest } from "firebase-functions/v2/https";
 import * as express from "express";
 import { ProtectedResourceEndpointResponse } from "oauth2-nodejs";
 import { AbstractProtectedResourceEndpoint } from "./abstract_protected_resource_endpoint";
@@ -62,6 +62,4 @@ export class UserInfoEndpoint extends AbstractProtectedResourceEndpoint {
   }
 }
 
-export function userinfo(): functions.HttpsFunction {
-  return new UserInfoEndpoint().endpoint;
-}
+export const userinfo = onRequest(new UserInfoEndpoint().endpoint);

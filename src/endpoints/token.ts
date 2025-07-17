@@ -1,12 +1,14 @@
 
-import * as functions from 'firebase-functions';
-import { RequestWrapper } from '../models';
+import { onRequest } from 'firebase-functions/v2/https';
 import {
   DefaultClientCredentialFetcherProvider,
   TokenEndpoint,
 } from 'oauth2-nodejs';
 import { CustomGrantHandlerProvider } from './../granttype';
 import { CloudFirestoreDataHandlerFactory } from '../data';
+import {
+  RequestWrapper,
+} from '../models/request_wrapper';
 import {
   sendFailureIndicator,
   sendSuccessIndicator,
@@ -16,7 +18,7 @@ import {
 
 
 export function token() {
-
+  
   // SLI Logger
   const metadataResourceType = "Firebase Auth";
   const metadataAction = "Token Registration";
@@ -28,8 +30,8 @@ export function token() {
     metadataCriticalUserJourney,
   );
 
-  return functions.https.onRequest(async (req, resp) => {
-    functions.logger.info("token", req.method, req.url);
+  return onRequest(async (req, resp) => {
+    console.log("token", req.method, req.url);
     if (req.method === "POST") {
       const request = new RequestWrapper(req);
       const tokenEndpoint = new TokenEndpoint();
@@ -43,9 +45,9 @@ export function token() {
 
       try {
         const tokenEndpointResponse = await tokenEndpoint.handleRequest(request);
-        functions.logger.info("token Response", tokenEndpointResponse);
+        console.log("token Response", tokenEndpointResponse);
         resp.contentType("application/json; charset=UTF-8");
-        functions.logger.info("resp send", resp, resp.status(tokenEndpointResponse.code).send(tokenEndpointResponse.body));
+        console.log("resp send", resp, resp.status(tokenEndpointResponse.code).send(tokenEndpointResponse.body));
         resp.status(tokenEndpointResponse.code).send(tokenEndpointResponse.body);
 
         // SLI Logger

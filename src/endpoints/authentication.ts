@@ -1,8 +1,9 @@
-import * as functions from "firebase-functions";
-import * as admin from "firebase-admin";
-import * as express from "express";
-import * as cors from "cors";
+import { onRequest } from "firebase-functions/v2/https";
+import admin = require("firebase-admin");
+const express = require('express');
 import * as qs from "qs";
+import { Request, Response, Application } from 'express';
+const cors = require('cors')();
 import { RequestWrapper } from "../models";
 import { Crypto, Navigation, processConsent } from "../utils";
 import { CloudFirestoreClients } from "../data";
@@ -17,13 +18,13 @@ class AuthenticationApp {
   static create(
     providerName: string,
     authenticationUrl: string,
-  ): express.Express {
+  ): Application {
     const authenticationApp = express();
-    authenticationApp.use(cors({ origin: "*" }));
+ authenticationApp.use(cors);
 
     const authenticationGet = (
-      req: express.Request,
-      resp: express.Response,
+      req: Request,
+      resp: Response,
     ) => {
       const request = new RequestWrapper(req);
       const authToken = request.getParameter("auth_token");
@@ -41,8 +42,8 @@ class AuthenticationApp {
     authenticationApp.get("/", authenticationGet);
     authenticationApp.get("/authentication", authenticationGet);
     const authenticationPost = async (
-      req: express.Request,
-      resp: express.Response,
+      req: Request,
+      resp: Response,
     ) => {
       const request = new RequestWrapper(req);
       const encyptedAuthToken = request.getParameter("auth_token")!;
@@ -146,8 +147,6 @@ class AuthenticationApp {
   }
 }
 
-export function customAuthentication(authenticationUrl: string) {
-  return functions.https.onRequest(
-    AuthenticationApp.create("custom", authenticationUrl),
-  );
-}
+export const customAuthentication = onRequest(
+  AuthenticationApp.create("custom", process.env.AUTHENTICATION_URL || ""),
+);

@@ -1,5 +1,7 @@
-import * as functions from "firebase-functions";
-import * as express from "express";
+import { Request, Response } from 'express';
+const express = require('express');
+import { Application } from 'express';
+import { onRequest } from "firebase-functions/v2/https"; // Updated import
 import { RequestWrapper } from "../models";
 import { AuthorizationEndpoint } from "oauth2-nodejs";
 import { CloudFirestoreDataHandlerFactory } from "../data";
@@ -16,13 +18,14 @@ class AuthorizeApp {
   static create(
     providerName: string,
     authenticationUrl: string,
-  ): express.Express {
+  ): Application {
     const authorizeApp = express();
 authorizeApp.use(cors({ origin: "*" }));
-const authorizeProvider = async (req: express.Request, resp: express.Response) => {
+const authorizeProvider = async (req: Request, resp: Response) => {
   const request = new RequestWrapper(req);
   const authorizationEndpoint = new AuthorizationEndpoint();
-  functions.logger.log(request)
+  // functions.logger.log(request) // Removed old logging
+  console.log(request); // Using console.log for v2 logging
   authorizationEndpoint.dataHandlerFactory = new CloudFirestoreDataHandlerFactory();
   authorizationEndpoint.allowedResponseTypes = ["code", "token"];
 
@@ -36,16 +39,19 @@ const authorizeProvider = async (req: express.Request, resp: express.Response) =
     metadataAction,
     metadataCriticalUserJourney,
   );
-      
-      functions.logger.info("reqeuest", request);
-      functions.logger.info("authorizationEndpoint", authorizationEndpoint);
+
+      // functions.logger.info("reqeuest", request); // Removed old logging
+      // functions.logger.info("authorizationEndpoint", authorizationEndpoint); // Removed old logging
+      console.log("request", request); // Using console.log for v2 logging
+      console.log("authorizationEndpoint", authorizationEndpoint); // Using console.log for v2 logging
 
 
       try {
         const authorizationEndpointResponse = await authorizationEndpoint.handleRequest(
           request
         );
-        functions.logger.info(authorizationEndpointResponse);
+        // functions.logger.info(authorizationEndpointResponse); // Removed old logging
+        console.log(authorizationEndpointResponse); // Using console.log for v2 logging
         if (authorizationEndpointResponse.isSuccess()) {
           const authToken: { [key: string]: any } = {
             client_id: request.getParameter("client_id"),
@@ -76,7 +82,8 @@ const authorizeProvider = async (req: express.Request, resp: express.Response) =
           });
         } else {
           const error = authorizationEndpointResponse.error;
-          functions.logger.error(error.toJson());
+          // functions.logger.error(error.toJson()); // Removed old logging
+          console.error(error.toJson()); // Using console.error for v2 logging
           resp.contentType("application/json; charset=UTF-8");
           resp.status(error.code).send(error.toJson());
 
@@ -110,7 +117,7 @@ const authorizeProvider = async (req: express.Request, resp: express.Response) =
 
 
 export function customAuthorize(authenticationUrl: string) {
-  return functions.https.onRequest(
-    AuthorizeApp.create("Custom", authenticationUrl),
+  return onRequest( // Updated function definition
+    AuthorizeApp.create("Custom", process.env.AUTHENTICATION_URL || ""), // Using environment variable for auth URL
   );
 }

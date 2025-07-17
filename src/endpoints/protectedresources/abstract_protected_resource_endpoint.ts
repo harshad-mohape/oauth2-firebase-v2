@@ -1,5 +1,5 @@
 import * as express from "express";
-import * as functions from "firebase-functions";
+import { HttpsFunction, onRequest } from 'firebase-functions/v2/https';
 import { RequestWrapper } from "../../models";
 import {
   AccessDenied,
@@ -12,8 +12,8 @@ import { Navigation } from "../../utils";
 import { CloudFirestoreDataHandlerFactory } from "../../data";
 
 export abstract class AbstractProtectedResourceEndpoint {
-  public get endpoint(): functions.HttpsFunction {
-    return functions.https.onRequest(
+  public get endpoint(): HttpsFunction {
+    return onRequest(
       async (req: express.Request, resp: express.Response) => {
         const request = new RequestWrapper(req);
         const protectedResourceEndpoint = new ProtectedResourceEndpoint();

@@ -1,26 +1,15 @@
-# AuthN0de
+# oauth2-firebase-v2
 
 > ⚠️ This is a fork of [`oauth2-firebase`](https://github.com/yoichiro/oauth2-firebase), with additional support for custom login pages, custom authorize routes. The docs have been kept largely the same until I get time to address them.
 
-This library provides an OAuth2 server implementation for Firebase Auth:
+This library provides an OAuth2 server implementation for Firebase Auth, specifically designed for Firebase v2 functions:
 
 - Email and password or passwordless login via your custom Firebase Auth page (this fork)
-- Cloud Function for OAuth2 endpoints
+- Cloud Functions for OAuth2 endpoints
 - Cloud Firestore to store token information
 - OAuth 2.0 Compliant
 
-[![NPM Version](https://img.shields.io/npm/v/oauth2server-firebase)
-![npm](https://img.shields.io/npm/dw/oauth2server-firebase)
-](https://www.npmjs.org/package/oauth2server-firebase)
-[![GitHub repo size](https://img.shields.io/github/repo-size/richkevan/firebase-oauth)
-![GitHub Repo stars](https://img.shields.io/github/stars/richkevan/firebase-oauth)
-![GitHub forks](https://img.shields.io/github/forks/richkevan/firebase-oauth)
-![GitHub tag (with filter)](https://img.shields.io/github/v/tag/richkevan/firebase-oauth)](https://github.com/richkevan/firebase-oauth)
-![npm](https://img.shields.io/npm/dw/oauth2server-firebase)
-[![Discord](https://img.shields.io/discord/1151892177576788028?l)](https://discord.gg/vKwjwCYN)
-
-
-
+[![NPM Version](https://img.shields.io/npm/v/oauth2-firebase-v2)
 
 
 # How to install
@@ -30,12 +19,12 @@ This section describes how to use this library.
 ## Prerequisite
 
 You must already have some Firebase project which enables Cloud Functions, Cloud Firestore and Firebase Authentication.
-Especially, it is necessary to enable the Google Sign-In or Facebook Login for Federation ID provider on the Firebase Authentication.
+Especially, it is necessary to enable the Google Sign-In or Facebook Login for Federation ID provider on the Firebase Authentication. You also need to have Node.js and Yarn or npm installed.
 
 ## Install this library
 
 This library has been provided as JavaScript library on the npm repository. You can install this library
-with the `npm` command. We represent your project directory `${PROJECT_HOME}`.
+with the `yarn` or `npm` command. We represent your project directory `${PROJECT_HOME}`.
 
 ```bash
 $ cd ${PROJECT_HOME}
