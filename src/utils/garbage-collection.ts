@@ -1,29 +1,54 @@
-import { onSchedule } from "firebase-functions/v2/scheduler"; // Updated import
+import { onSchedule } from "firebase-functions/v2/scheduler";
+import { logger } from "firebase-functions";
 import * as admin from "firebase-admin";
 
-// Updated function definition
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
+
+// ✅ Garbage collection function
 export function garbageCollection(expiry = 2592000000, interval = "every 24 hours") {
-  return onSchedule(interval, async () => {
-    const db = admin.firestore();
+  return onSchedule(
+    {
+      schedule: interval,
+      timeZone: "UTC", // Change if needed
+      region: "us-central1", // Update region if needed
+      memory: "256MiB",
+    },
+    async () => {
+      const db = admin.firestore();
 
-    const now = new Date().getTime();
-    const threshold = now - expiry;
+      const now = Date.now();
+      const threshold = now - expiry;
 
-    console.log("Now", now, "Threshold", threshold); // Updated logging
-    const oldTokens = await db
-      .collection("oauth2_access_tokens")
-      .where("created_on", "<=", threshold)
-      .get();
+      logger.info("Running Garbage Collection", { now, threshold });
 
-    oldTokens.forEach(async (tokenSnapshot) => {
-      const data = tokenSnapshot.data();
-      console.log(data.oauth_info_id); // Updated logging
-      if (now > data.created_on + data.expires_in) {
-        await db
+      try {
+        const oldTokens = await db
           .collection("oauth2_access_tokens")
-          .doc(tokenSnapshot.id)
-          .delete();
+          .where("created_on", "<=", threshold)
+          .get();
+
+        if (oldTokens.empty) {
+          logger.info("No old tokens found.");
+          return;
+        }
+
+        const deletePromises: Promise<FirebaseFirestore.WriteResult>[] = [];
+
+        for (const tokenDoc of oldTokens.docs) {
+          const data = tokenDoc.data();
+          if (data.created_on && data.expires_in && now > data.created_on + data.expires_in) {
+            logger.info(`Deleting token: ${tokenDoc.id}`, data);
+            deletePromises.push(tokenDoc.ref.delete());
+          }
+        }
+
+        await Promise.all(deletePromises);
+        logger.info(`Deleted ${deletePromises.length} expired tokens.`);
+      } catch (error) {
+        logger.error("Error during garbage collection", error);
       }
-    });
-  });
+    }
+  );
 }

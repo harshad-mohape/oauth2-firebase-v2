@@ -1,9 +1,8 @@
 import { onRequest } from "firebase-functions/v2/https";
-import admin = require("firebase-admin");
-const express = require('express');
+import * as admin from "firebase-admin";
+import express, { Request, Response, Application } from "express";
 import * as qs from "qs";
-import { Request, Response, Application } from 'express';
-const cors = require('cors')();
+import cors from "cors";
 import { RequestWrapper } from "../models";
 import { Crypto, Navigation, processConsent } from "../utils";
 import { CloudFirestoreClients } from "../data";
@@ -11,28 +10,22 @@ import {
   sendFailureIndicator,
   sendSuccessIndicator,
   cloudLoggingMetadata,
-  getProjectId
-} from '../utils/sliLogger';
+  getProjectId,
+} from "../utils/sliLogger";
 
 class AuthenticationApp {
-  static create(
-    providerName: string,
-    authenticationUrl: string,
-  ): Application {
+  static create(authenticationUrl: string): Application {
     const authenticationApp = express();
- authenticationApp.use(cors);
 
-    const authenticationGet = (
-      req: Request,
-      resp: Response,
-    ) => {
+    // ✅ Correct CORS usage
+    authenticationApp.use(cors({ origin: true }));
+
+    // ✅ Handle GET routes
+    const authenticationGet = (req: Request, resp: Response) => {
       const request = new RequestWrapper(req);
       const authToken = request.getParameter("auth_token");
 
-      const payload = {
-        authToken: authToken,
-      };
-
+      const payload = { authToken };
       const strippedUrl = authenticationUrl.split("?")[0];
       const urlWithPayload = `${strippedUrl}?${qs.stringify(payload)}`;
 
@@ -41,16 +34,14 @@ class AuthenticationApp {
 
     authenticationApp.get("/", authenticationGet);
     authenticationApp.get("/authentication", authenticationGet);
-    const authenticationPost = async (
-      req: Request,
-      resp: Response,
-    ) => {
+
+    // ✅ Handle POST routes
+    const authenticationPost = async (req: Request, resp: Response) => {
       const request = new RequestWrapper(req);
-      const encyptedAuthToken = request.getParameter("auth_token")!;
+      const encryptedAuthToken = request.getParameter("auth_token")!;
       const idTokenString = request.getParameter("id_token")!;
       const success = request.getParameter("success");
 
-      // SLI Logger
       const metadataResourceType = "Firebase Auth";
       const metadataAction = "Authentication";
       const metadataCriticalUserJourney = "SSO";
@@ -58,95 +49,63 @@ class AuthenticationApp {
         getProjectId(),
         metadataResourceType,
         metadataAction,
-        metadataCriticalUserJourney,
+        metadataCriticalUserJourney
       );
 
-      const authToken = JSON.parse(
-        Crypto.decrypt(request.getParameter("auth_token")!),
-      );
-      let client;
-      if (success === "true") {
-        try {
+      try {
+        const authToken = JSON.parse(Crypto.decrypt(encryptedAuthToken));
+
+        if (success === "true") {
           const idToken = await admin.auth().verifyIdToken(idTokenString);
 
           if (idToken.aud === process.env.GCLOUD_PROJECT) {
-            client = await CloudFirestoreClients.fetch(authToken["client_id"]);
+            const client = await CloudFirestoreClients.fetch(authToken["client_id"]);
 
             if (client?.implicitConsent) {
               const payload = await processConsent(
                 resp,
-                {
-                  action: "allow",
-                  authToken,
-                  userId: idToken.sub,
-                },
-                { redirect: !client?.browserRedirect },
+                { action: "allow", authToken, userId: idToken.sub },
+                { redirect: !client?.browserRedirect }
               );
 
-              // SLI Logger
-              sendSuccessIndicator(
-                metadata,
-                "Browser redirect to avoid CORS",
-                metadataResourceType,
-                metadataAction,
-              );
-
+              sendSuccessIndicator(metadata, "Browser redirect after implicit consent", metadataResourceType, metadataAction);
               return resp.json(payload);
             } else {
               const encryptedUserId = Crypto.encrypt(idToken.sub);
-
-              Navigation.redirect(resp, "/authorize/consent", {
-                auth_token: encyptedAuthToken,
+              return Navigation.redirect(resp, "/authorize/consent", {
+                auth_token: encryptedAuthToken,
                 user_id: encryptedUserId,
               });
             }
           }
-        } catch (error) {
-          // SLI Logger
-          sendFailureIndicator(
-            metadata,
-            "Authentication error",
-            metadataResourceType,
-            metadataAction,
-          );
-
-          return resp.json({error: JSON.stringify(error)})
         }
+
+        // Default failure behavior
+        if (success !== "true") {
+          if (authToken && authToken["redirect_uri"]) {
+            Navigation.redirect(resp, authToken["redirect_uri"], { error: "access_denied" });
+          } else {
+            resp.status(400).json({ error: "access_denied" });
+          }
+
+          sendFailureIndicator(metadata, "Authentication failed", metadataResourceType, metadataAction);
+        }
+      } catch (error) {
+        console.error("Authentication error:", error);
+        resp.status(500).json({ error: "Authentication error", details: error.message });
+
+        sendFailureIndicator(metadata, "Authentication exception", metadataResourceType, metadataAction);
       }
-      if (client?.browserRedirect) {
-        // SLI Logger
-        sendFailureIndicator(
-          metadata,
-          "Authentication error",
-          metadataResourceType,
-          metadataAction,
-        );
-
-        return resp.json({
-          error: "access_denied",
-        });
-      }
-
-      Navigation.redirect(resp, authToken["redirect_uri"], {
-        error: "access_denied",
-      });
-
-      // SLI Logger
-      sendFailureIndicator(
-        metadata,
-        "Authentication error",
-        metadataResourceType,
-        metadataAction,
-      );
-
-      return
     };
+
     authenticationApp.post("/", authenticationPost);
     authenticationApp.post("/authentication", authenticationPost);
+
     return authenticationApp;
   }
 }
 
+// ✅ Firebase v2 wrapper
 export const customAuthentication = onRequest(
-  AuthenticationApp.create("custom", process.env.AUTHENTICATION_URL || ""),
+  AuthenticationApp.create(process.env.AUTHENTICATION_URL || "")
 );

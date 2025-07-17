@@ -48,7 +48,7 @@ The code you need to write is the following:
 
 ```javascript
 import * as functions from "firebase-functions";
-import {authorize, Configuration, customAuthentication, garbageCollection, token} from "oauth2-firebase-auth";
+import {authorize, Configuration, customAuthentication, garbageCollection, token} from "oauth2-firebase-v2";
 
 Configuration.init({
   crypto_auth_token_secret_key_32: functions.config().crypto.auth_token_secret_key_32,
@@ -227,7 +227,7 @@ In OpenID Connect specification, the userinfo endpoint is defined. It provides t
 You can provide the userinfo API endpoint easily by writing the following code:
 
 ```javascript
-import {userinfo} from "oauth2-firebase-auth";
+import {userinfo} from "oauth2-firebase-v2";
 ...
 exports.userinfo = userinfo();
 ```
@@ -257,7 +257,7 @@ whether the passed access token is issued for your client or not. You can provid
 writing the following code:
 
 ```javascript
-import {tokeninfo} from "oauth2-firebase-auth";
+import {tokeninfo} from "oauth2-firebase-v2";
 ...
 exports.tokeninfo = tokeninfo();
 ```
@@ -319,7 +319,7 @@ To customize the page design, you need to create a new class which implements th
 For example, the class code will be like the following:
 
 ```javascript
-import { ConsentViewTemplate } from "oauth2-firebase-auth/dist/endpoint/views/consent_view_template";
+import { ConsentViewTemplate } from "oauth2-firebase-v2/dist/endpoint/views/consent_view_template";
 
 export class MyConsentViewTemplate implements ConsentViewTemplate {
   provide(): Promise<string> {
@@ -370,7 +370,7 @@ And, you need to set the instance to the Configuration class instance as like th
 
 ```javascript
 import * as functions from "firebase-functions";
-import {authorize, Configuration, googleAccountAuthentication, token, userinfo} from "oauth2-firebase-auth";
+import {authorize, Configuration, googleAccountAuthentication, token, userinfo} from "oauth2-firebase-v2";
 import {MyConsentViewTemplate} from "./my_consent_view_template"
 
 Configuration.init({
@@ -403,7 +403,7 @@ As the result, your code will be like the following:
 
 ```javascript
 import * as express from "express";
-import {AbstractProtectedResourceEndpoint} from "oauth2-firebase-auth";
+import {AbstractProtectedResourceEndpoint} from "oauth2-firebase-v2";
 import {ProtectedResourceEndpointResponse} from "oauth2-nodejs";
 
 class FriendsEndpoint extends AbstractProtectedResourceEndpoint {

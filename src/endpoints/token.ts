@@ -1,4 +1,3 @@
-
 import { onRequest } from 'firebase-functions/v2/https';
 import {
   DefaultClientCredentialFetcherProvider,
@@ -6,20 +5,23 @@ import {
 } from 'oauth2-nodejs';
 import { CustomGrantHandlerProvider } from './../granttype';
 import { CloudFirestoreDataHandlerFactory } from '../data';
-import {
-  RequestWrapper,
-} from '../models/request_wrapper';
+import { RequestWrapper } from '../models/request_wrapper';
 import {
   sendFailureIndicator,
   sendSuccessIndicator,
   cloudLoggingMetadata,
   getProjectId
-} from '../utils/sliLogger'
+} from '../utils/sliLogger';
+import cors from 'cors';
+import express from 'express';
 
+// ✅ Create Express app for proper middleware handling
+const tokenApp = express();
+tokenApp.use(cors({ origin: true }));
 
-export function token() {
-  
-  // SLI Logger
+// ✅ Define route
+tokenApp.post('/', async (req, res) => {
+  // SLI Logger metadata
   const metadataResourceType = "Firebase Auth";
   const metadataAction = "Token Registration";
   const metadataCriticalUserJourney = "SSO";
@@ -30,54 +32,42 @@ export function token() {
     metadataCriticalUserJourney,
   );
 
-  return onRequest(async (req, resp) => {
-    console.log("token", req.method, req.url);
-    if (req.method === "POST") {
-      const request = new RequestWrapper(req);
-      const tokenEndpoint = new TokenEndpoint();
-      const clientCredentialFetcherProvider = new DefaultClientCredentialFetcherProvider();
+  try {
+    const request = new RequestWrapper(req);
+    const tokenEndpoint = new TokenEndpoint();
+    const clientCredentialFetcherProvider = new DefaultClientCredentialFetcherProvider();
 
-      tokenEndpoint.grantHandlerProvider = new CustomGrantHandlerProvider(
-        clientCredentialFetcherProvider
-      );
-      tokenEndpoint.clientCredentialFetcherProvider = clientCredentialFetcherProvider;
-      tokenEndpoint.dataHandlerFactory = new CloudFirestoreDataHandlerFactory();
+    tokenEndpoint.grantHandlerProvider = new CustomGrantHandlerProvider(clientCredentialFetcherProvider);
+    tokenEndpoint.clientCredentialFetcherProvider = clientCredentialFetcherProvider;
+    tokenEndpoint.dataHandlerFactory = new CloudFirestoreDataHandlerFactory();
 
-      try {
-        const tokenEndpointResponse = await tokenEndpoint.handleRequest(request);
-        console.log("token Response", tokenEndpointResponse);
-        resp.contentType("application/json; charset=UTF-8");
-        console.log("resp send", resp, resp.status(tokenEndpointResponse.code).send(tokenEndpointResponse.body));
-        resp.status(tokenEndpointResponse.code).send(tokenEndpointResponse.body);
+    const tokenEndpointResponse = await tokenEndpoint.handleRequest(request);
 
-        // SLI Logger
-        sendSuccessIndicator(
-          metadata,
-          "Successfully provided token",
-          metadataResourceType,
-          metadataAction,
-        );
-      } catch (error) {
-        resp.status(500).send(error.toString());
+    res.status(tokenEndpointResponse.code)
+       .contentType("application/json; charset=UTF-8")
+       .send(tokenEndpointResponse.body);
 
-        // SLI Logger
-        sendFailureIndicator(
-          metadata,
-          "Failed to provide token",
-          metadataResourceType,
-          metadataAction,
-        );
-      }
-    } else {
-      resp.status(405).send("Method Not Allowed");
+    sendSuccessIndicator(metadata, "Successfully provided token", metadataResourceType, metadataAction);
+  } catch (error) {
+    console.error("Token endpoint error:", error);
 
-      // SLI Logger
-      sendFailureIndicator(
-        metadata,
-        "Failed to provide token, method not allowed",
-        metadataResourceType,
-        metadataAction,
-      );
-    }
-  });
-}
+    res.status(500).json({ error: "Token generation failed", details: error.message || error });
+
+    sendFailureIndicator(metadata, "Failed to provide token", metadataResourceType, metadataAction);
+  }
+});
+
+// ✅ Handle other methods
+tokenApp.all('*', (req, res) => {
+  res.status(405).send("Method Not Allowed");
+
+  sendFailureIndicator(
+    cloudLoggingMetadata(getProjectId(), "Firebase Auth", "Token Registration", "SSO"),
+    "Failed to provide token, method not allowed",
+    "Firebase Auth",
+    "Token Registration"
+  );
+});
+
+// ✅ Export as Firebase v2 function
+export const token = onRequest(tokenApp);

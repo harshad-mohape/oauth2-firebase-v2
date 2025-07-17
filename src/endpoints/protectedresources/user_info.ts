@@ -62,4 +62,4 @@ export class UserInfoEndpoint extends AbstractProtectedResourceEndpoint {
   }
 }
 
-export const userinfo = onRequest(new UserInfoEndpoint().endpoint);
+export const userinfo = onRequest((req, res) => new UserInfoEndpoint().endpoint(req, res));
