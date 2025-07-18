@@ -106,6 +106,6 @@ class AuthenticationApp {
 }
 
 // ✅ Firebase v2 wrapper
-export const customAuthentication = onRequest(
-  AuthenticationApp.create(process.env.AUTHENTICATION_URL || "")
-);
+export function customAuthentication(loginUri: string) {
+  return onRequest(AuthenticationApp.create(loginUri));
+}

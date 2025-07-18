@@ -98,7 +98,7 @@ class AuthorizeApp {
   }
 }
 
-// ✅ Firebase v2 compatible export
-export const customAuthorize = onRequest(
-  AuthorizeApp.create(process.env.AUTHENTICATION_URL || "")
-);
+// ✅ Export a function that accepts the URI
+export function customAuthorize(authUrl: string) {
+  return onRequest(AuthorizeApp.create(authUrl));
+}
