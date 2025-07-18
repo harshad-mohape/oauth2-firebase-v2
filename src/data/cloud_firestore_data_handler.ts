@@ -1,4 +1,3 @@
-import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import * as firestore from "@google-cloud/firestore";
 import * as url from "url";
@@ -7,7 +6,7 @@ import { Configuration } from "../utils";
 import * as crypto from "crypto";
 
 if (!admin.apps.length) {
-  admin.initializeApp(functions.config().firebase);
+  admin.initializeApp();
 }
 
 export class CloudFirestoreDataHandler implements DataHandler {

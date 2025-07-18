@@ -14,7 +14,7 @@
  */
 
 const { Logging } = require("@google-cloud/logging");
-const functions = require("firebase-functions");
+const { onCall } = require("firebase-functions/v2/https");
 
 const projectId = process.env.GCP_PROJECT || process.env.GCLOUD_PROJECT;
 const logName = `reactAppLog.${projectId}`;
@@ -22,14 +22,17 @@ const logging = new Logging({ projectId });
 const log = logging.log(logName);
 
 const writeLog = async (entry) => {
-  // Writes the log entry
-  await log.write(entry);
+  try {
+    await log.write(entry);
+    console.log("Finished writing log entry");
+  } catch (error) {
+    console.log("Error writing log entry, error: ", error.message);
+  }
 };
 
 const sendCloudLogging = async (text, metadata) => {
-  // Prepares a log entry & writes
   const entry = log.entry(metadata, text);
-  console.log(`Logged: ${text}`);
+  console.log(`Preparing to log, text: ${text}`);
   await writeLog(entry);
 };
 
@@ -37,36 +40,35 @@ const getEnvName = (projectId) => {
   return projectId.split("-")[0];
 };
 
-const sliLogger = () =>
-  functions.https.onCall(async (data, context) => {
-    try {
-      // The metadata associated with the entry
-      const metadata = {
-        severity: data.sevLevel,
-        resource: { type: "global" },
-        labels: {
-          env: data.env,
-          context: JSON.stringify(data.messageContext),
-          resourceType: data.resourceType,
-          action: data.action,
-          resultStatus: data.resultStatus,
-          criticalUserJourney: data.cuj,
-        },
-      };
-      await sendCloudLogging(data.message, metadata);
-      return {
-        status: "success",
-        message: data.message,
-        metadata: metadata,
-      };
-    } catch (e) {
-      functions.logger.error("HTTPS callable function error: ", e);
-      return {
-        status: "failure",
-        error: e,
-      };
-    }
-  });
+const sliLogger = onCall(async (request) => {
+  const data = request.data;
+  try {
+    const metadata = {
+      severity: data.sevLevel,
+      resource: { type: "global" },
+      labels: {
+        env: getEnvName(projectId),
+        context: JSON.stringify(data.messageContext),
+        resourceType: data.resourceType,
+        action: data.action,
+        resultStatus: data.resultStatus,
+        criticalUserJourney: data.cuj,
+      },
+    };
+    await sendCloudLogging(data.message, metadata);
+    return {
+      status: "success",
+      message: data.message,
+      metadata: metadata,
+    };
+  } catch (e) {
+    console.error("HTTPS callable function error: ", e);
+    return {
+      status: "failure",
+      error: e.message,
+    };
+  }
+});
 
 const cloudLoggingMetadata = (
   projectID,
